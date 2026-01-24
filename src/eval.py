@@ -240,17 +240,17 @@ def answer_relevance(question, answer):
 # ================= EVAL DATA ===============
 EVAL_QUERIES = [
     {
-        "question": "who is the author of the document?",
-        "relevant_chunk_ids": [0]
+        "question": "question related to the document",
+        "relevant_chunk_ids": ["chunk id in which answer is present"]
     },
     {
-        "question": "what is the development process?",
-        "relevant_chunk_ids": [1,2,3]
+        "question": "question related to the document",
+        "relevant_chunk_ids": ["chunk id in which answer is present"]
     },
-    #{
-    #    "question": "what is travelling salesman problem?",
-    #    "relevant_chunk_ids": [0]
-    #}
+    {
+        "question": "question related to the document",
+        "relevant_chunk_ids": ["chunk id in which answer is present"]
+    }
 ]
 
 
