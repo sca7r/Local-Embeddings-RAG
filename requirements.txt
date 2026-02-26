@@ -1,5 +1,9 @@
-pdfplumber==0.11.0
+pdfplumber
 pdfminer.six==20231228
 numpy>=1.23
-scikit-learn>=1.2
+#scikit-learn>=1.2
 sentence-transformers>=2.2.2
+qdrant-client
+requests
+fastapi
+uvicorn
