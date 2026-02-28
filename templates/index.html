@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>RAG Assistant</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Tiempos+Headline:wght@400;500&family=Styrene+B:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f5f0e8; --sidebar-bg: #1c1917; --sidebar-hover: #292524;
+            --surface: #faf7f2; --border: #e8e0d4;
+            --text-primary: #1c1917; --text-secondary: #78716c; --text-muted: #a8a29e;
+            --accent: #d97706; --accent-soft: #fef3c7;
+            --user-bubble: #1c1917; --assistant-bubble: #ffffff;
+            --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Styrene B', Georgia, serif; background: var(--bg); color: var(--text-primary); height: 100vh; display: flex; overflow: hidden; }
+
+        /* Sidebar */
+        .sidebar { width: 260px; flex-shrink: 0; background: var(--sidebar-bg); display: flex; flex-direction: column; overflow: hidden; }
+        .sidebar-header { padding: 28px 20px 20px; border-bottom: 1px solid #292524; }
+        .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+        .brand-icon { width: 32px; height: 32px; background: linear-gradient(135deg,#d97706,#92400e); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+        .brand-icon svg { width: 18px; height: 18px; fill: white; }
+        .brand-name { font-size: 15px; font-weight: 500; color: #faf7f2; letter-spacing: -0.01em; }
+        .new-chat-btn { width: 100%; padding: 10px 14px; background: transparent; border: 1px solid #3a3330; border-radius: 8px; color: #d6d3d1; font-size: 13px; font-family: inherit; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.15s; }
+        .new-chat-btn:hover { background: var(--sidebar-hover); border-color: #525252; }
+        .new-chat-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
+        .sidebar-section { padding: 16px 20px 8px; }
+        .sidebar-label { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #57534e; margin-bottom: 8px; font-weight: 500; }
+        .upload-zone { border: 1.5px dashed #3a3330; border-radius: 10px; padding: 20px 16px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
+        .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: rgba(217,119,6,0.06); }
+        .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+        .upload-icon { width: 28px; height: 28px; margin: 0 auto 8px; color: #78716c; }
+        .upload-icon svg { width: 100%; height: 100%; stroke: currentColor; fill: none; }
+        .upload-text { font-size: 12px; color: #a8a29e; line-height: 1.4; }
+        .upload-text strong { color: #d6d3d1; font-weight: 500; }
+        .upload-btn { margin-top: 12px; width: 100%; padding: 9px; background: var(--accent); color: white; border: none; border-radius: 7px; font-size: 12.5px; font-family: inherit; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+        .upload-btn:hover { background: #b45309; }
+        .upload-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .status-pill { margin: 8px 0 0; font-size: 11.5px; padding: 6px 10px; border-radius: 6px; display: none; }
+        .status-pill.visible { display: block; }
+        .status-pill.success { background: #052e16; color: #4ade80; }
+        .status-pill.error   { background: #450a0a; color: #f87171; }
+        .status-pill.loading { background: #1c1917; color: #a8a29e; font-style: italic; }
+        .file-badge { margin-top: 8px; padding: 8px 10px; background: #292524; border-radius: 7px; display: none; align-items: center; gap: 8px; }
+        .file-badge.visible { display: flex; }
+        .file-badge svg { width: 14px; height: 14px; stroke: var(--accent); fill: none; flex-shrink: 0; }
+        .file-badge-name { font-size: 11.5px; color: #d6d3d1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sidebar-footer { margin-top: auto; padding: 16px 20px; border-top: 1px solid #292524; }
+        .hint-text { font-size: 11px; color: #57534e; line-height: 1.5; }
+
+        /* Main */
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+        .main-header { padding: 20px 32px; border-bottom: 1px solid var(--border); background: var(--bg); display: flex; align-items: center; justify-content: space-between; }
+        .main-title { font-family: 'Tiempos Headline', Georgia, serif; font-size: 20px; font-weight: 400; letter-spacing: -0.02em; }
+        .main-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+        .model-badge { padding: 5px 12px; background: var(--accent-soft); color: var(--accent); border-radius: 20px; font-size: 11.5px; font-weight: 500; }
+
+        /* Chat */
+        .chat-area { flex: 1; overflow-y: auto; padding: 32px; scroll-behavior: smooth; }
+        .chat-area::-webkit-scrollbar { width: 4px; }
+        .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        .empty-state { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 16px; }
+        .empty-icon { width: 56px; height: 56px; background: linear-gradient(135deg,#d97706,#92400e); border-radius: 16px; display: flex; align-items: center; justify-content: center; opacity: 0.85; }
+        .empty-icon svg { width: 28px; height: 28px; fill: white; }
+        .empty-title { font-family: 'Tiempos Headline', Georgia, serif; font-size: 22px; font-weight: 400; letter-spacing: -0.02em; }
+        .empty-desc { font-size: 14px; color: var(--text-secondary); max-width: 340px; line-height: 1.6; }
+        .suggestion-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; max-width: 500px; }
+        .chip { padding: 8px 14px; border: 1px solid var(--border); border-radius: 20px; font-size: 12.5px; color: var(--text-secondary); background: var(--surface); cursor: pointer; transition: all 0.15s; }
+        .chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+        /* Messages */
+        .messages { display: flex; flex-direction: column; gap: 24px; }
+        .message-row { display: flex; gap: 14px; align-items: flex-start; animation: fadeUp 0.25s ease; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .message-row.user { flex-direction: row-reverse; }
+        .avatar { width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+        .avatar.user-av { background: var(--user-bubble); color: white; }
+        .avatar.assistant-av { background: linear-gradient(135deg,#d97706,#92400e); color: white; }
+        .avatar svg { width: 16px; height: 16px; fill: white; }
+        .bubble { max-width: 72%; padding: 14px 18px; border-radius: 14px; font-size: 14px; line-height: 1.65; white-space: pre-wrap; word-break: break-word; }
+        .bubble.user { background: var(--user-bubble); color: white; border-bottom-right-radius: 4px; }
+        .bubble.assistant { background: var(--assistant-bubble); color: var(--text-primary); border-bottom-left-radius: 4px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+        .typing-dots {display: inline-flex;gap: 4px;margin-left: 4px;}
+        .typing-dots span {width: 6px;height: 6px;background: #999;border-radius: 50%;animation: bounce 1.2s infinite ease-in-out;}
+        .typing-dots span:nth-child(2) {animation-delay: 0.2s;}
+        .typing-dots span:nth-child(3) {animation-delay: 0.4s;}
+        @keyframes bounce {0%, 80%, 100% { transform: scale(0.6); opacity: 0.6; } 40% { transform: scale(1); opacity: 1; }}
+
+        .bubble-thinking { background: var(--assistant-bubble); color: var(--text-muted); border: 1px solid var(--border); box-shadow: var(--shadow); padding: 14px 18px; border-radius: 14px; border-bottom-left-radius: 4px; font-size: 13.5px; font-style: italic; display: flex; align-items: center; gap: 8px; }
+        .dots { display: flex; gap: 4px; }
+        .dots span { width: 5px; height: 5px; background: var(--text-muted); border-radius: 50%; animation: bounce 1.2s infinite; }
+        .dots span:nth-child(2) { animation-delay: 0.2s; }
+        .dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-4px); } }
+
+        /* Input */
+        .input-area { padding: 20px 32px 28px; background: var(--bg); border-top: 1px solid var(--border); }
+        .input-wrapper { background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; padding: 14px 16px; display: flex; align-items: flex-end; gap: 12px; transition: border-color 0.2s, box-shadow 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .input-wrapper:focus-within { border-color: #d97706; box-shadow: 0 0 0 3px rgba(217,119,6,0.1); }
+        .input-wrapper textarea { flex: 1; border: none; background: transparent; resize: none; font-size: 14px; font-family: inherit; color: var(--text-primary); outline: none; max-height: 160px; line-height: 1.6; min-height: 22px; }
+        .input-wrapper textarea::placeholder { color: var(--text-muted); }
+        .send-btn { width: 36px; height: 36px; border-radius: 8px; background: var(--user-bubble); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+        .send-btn:hover { background: #292524; }
+        .send-btn:active { transform: scale(0.95); }
+        .send-btn:disabled { background: #d6d3d1; cursor: not-allowed; }
+        .send-btn svg { width: 16px; height: 16px; stroke: white; fill: none; }
+        .input-hint { font-size: 11px; color: var(--text-muted); margin-top: 8px; text-align: center; }
+    </style>
+</head>
+
+<body>
+
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <div class="brand">
+            <div class="brand-icon">
+                <svg viewBox="0 0 40 40" width="100%" height="100%">
+                    <rect x="4" y="4" width="32" height="32" rx="8" fill="none" stroke="#d97706" stroke-width="2"/>
+                    <text x="20" y="25" text-anchor="middle" font-size="14" font-family="Arial, sans-serif" font-weight="600" fill="#d6d3d1">
+            HP
+        </text>
+    </svg>
+</div>
+            <span class="brand-name">RAG Assistant</span>
+        </div>
+        <button class="new-chat-btn" onclick="clearChat()">
+            <svg viewBox="0 0 24 24" stroke-width="1.8"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New conversation
+        </button>
+    </div>
+
+    <div class="sidebar-section">
+        <p class="sidebar-label">Knowledge Base</p>
+        <div class="upload-zone" id="uploadZone">
+            <input type="file" id="pdfFile" accept="application/pdf" onchange="handleFileSelect(event)">
+            <div class="upload-icon">
+                <svg viewBox="0 0 24 24" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="upload-text"><strong>Drop PDF here</strong><br>or click to browse</div>
+        </div>
+        <div class="file-badge" id="fileBadge">
+            <svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span class="file-badge-name" id="fileName">document.pdf</span>
+        </div>
+        <button class="upload-btn" id="uploadBtn" onclick="uploadPDF()" disabled>Process Document</button>
+        <div class="status-pill" id="statusPill"></div>
+    </div>
+
+    <div class="sidebar-footer">
+        <p class="hint-text">Upload a PDF, then ask questions.</p>
+    </div>
+</aside>
+
+<main class="main">
+    <div class="main-header">
+        <div>
+            <div class="main-title">Ask your document</div>
+            <div class="main-subtitle"> </div>
+        </div>
+        <span class="model-badge">RAG · PDF</span>
+    </div>
+
+    <div class="chat-area" id="chatArea">
+        <div class="empty-state" id="emptyState">
+            <div class="empty-icon">
+                 <svg viewBox="0 0 40 40"> <rect x="4" y="4" width="32" height="32" rx="8" fill="none" stroke="#d97706" stroke-width="2"/> <text x="20" y="25" text-anchor="middle" font-size="14" font-family="Arial, sans-serif" font-weight="600" fill="white">HP</text></svg>
+            </div>
+            <div class="empty-title">What would you like to know?</div>
+            <div class="empty-desc">Upload a PDF from the sidebar, then ask any question about its contents.</div>
+            <div class="suggestion-chips">
+                <span class="chip" onclick="useChip(this)">Summarize the document</span>
+                <span class="chip" onclick="useChip(this)">What are the key findings?</span>
+                <span class="chip" onclick="useChip(this)">List the main topics covered</span>
+                <span class="chip" onclick="useChip(this)">What conclusions are drawn?</span>
+            </div>
+        </div>
+        <div class="messages" id="messages"></div>
+    </div>
+
+    <div class="input-area">
+        <div class="input-wrapper">
+            <textarea id="question" placeholder="Ask a question about your document…" rows="1"
+                onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+            <button class="send-btn" id="sendBtn" onclick="askQuestion()">
+                <svg viewBox="0 0 24 24" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+        </div>
+        <p class="input-hint">Enter to send · Shift+Enter for new line</p>
+    </div>
+</main>
+
+<script>
+let selectedFile = null;
+let isStreaming  = false;
+
+/* ---------- FILE SELECT ---------- */
+window.handleFileSelect = function(event) {
+    selectedFile = event.target.files[0];
+    if (!selectedFile) return;
+
+    document.getElementById('fileName').textContent = selectedFile.name;
+    document.getElementById('fileBadge').classList.add('visible');
+    document.getElementById('uploadBtn').disabled = false;
+    setStatus('', '');
+};
+
+function setStatus(msg, type) {
+    const pill = document.getElementById('statusPill');
+    pill.textContent = msg;
+    pill.className = 'status-pill' + (msg ? ' visible ' + type : '');
+}
+
+/* ---------- PDF UPLOAD ---------- */
+window.uploadPDF = async function() {
+    if (!selectedFile) return;
+
+    const btn = document.getElementById('uploadBtn');
+    btn.disabled = true;
+    setStatus('Processing…', 'loading');
+
+    const fd = new FormData();
+    fd.append('file', selectedFile);
+
+    try {
+        const res  = await fetch('/load_pdf', { method: 'POST', body: fd });
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.detail || data.error || 'Upload failed');
+        }
+
+        setStatus(`✓ Ready · ${data.chunks} chunks indexed`, 'success');
+
+    } catch (err) {
+        setStatus('✗ ' + err.message, 'error');
+        btn.disabled = false;
+    }
+};
+
+/* ---------- INPUT HELPERS ---------- */
+window.autoResize = function(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+};
+
+window.handleKey = function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        window.askQuestion();
+    }
+};
+
+window.useChip = function(el) {
+    const input = document.getElementById('question');
+    input.value = el.textContent;
+    autoResize(input);
+    input.focus();
+};
+
+window.clearChat = function() {
+    document.getElementById('messages').innerHTML = '';
+    document.getElementById('emptyState').style.display = '';
+};
+
+/* ---------- ADD MESSAGE BUBBLE ---------- */
+function addMessage(role, text) {
+    const container = document.getElementById('messages');
+    document.getElementById('emptyState').style.display = 'none';
+
+    const row = document.createElement('div');
+    row.className = 'message-row ' + role;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar ' + (role === 'user' ? 'user-av' : 'assistant-av');
+    avatar.innerHTML = role === 'user'
+        ? 'You'
+        : `<svg viewBox="0 0 40 40"> <rect x="4" y="4" width="32" height="32" rx="8" fill="none" stroke="#d97706" stroke-width="2"/> <text x="20" y="25" text-anchor="middle" font-size="14" font-family="Arial, sans-serif" font-weight="600" fill="white">HP</text></svg>`;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble ' + role;
+    bubble.textContent = text;
+
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+    container.appendChild(row);
+
+    document.getElementById('chatArea').scrollTop =
+        document.getElementById('chatArea').scrollHeight;
+
+    return bubble;
+}
+
+/* ---------- CHAT FUNCTION ---------- */
+window.askQuestion = async function() {
+    if (isStreaming) return;
+
+    const input = document.getElementById('question');
+    const q = input.value.trim();
+    if (!q) return;
+
+    input.value = '';
+    input.style.height = 'auto';
+
+    addMessage('user', q);
+    const assistantBubble = addMessage('assistant', '');
+    assistantBubble.innerHTML = `
+        <span class="typing-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+        </span>
+    `;
+
+    isStreaming = true;
+    document.getElementById('sendBtn').disabled = true;
+
+    try {
+        const res = await fetch('/query_stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question: q })
+        });
+
+        if (!res.ok) throw new Error("Server error " + res.status);
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = "";
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split("\n");
+
+            for (const line of lines) {
+                if (!line.startsWith("data: ")) continue;
+
+                const payload = line.replace("data: ", "").trim();
+                if (payload === "[DONE]") break;
+
+                try {
+                    const obj = JSON.parse(payload);
+                    if (obj.token) {
+                        if (assistantBubble.querySelector('.typing-dots')) {
+                            assistantBubble.textContent = '';
+                        }
+
+                        fullText += obj.token;
+                        assistantBubble.textContent = fullText;
+                    }
+                } catch {}
+            }
+        }
+
+    } catch (err) {
+        assistantBubble.textContent = "Error: " + err.message;
+    } finally {
+        
+        isStreaming = false;
+        document.getElementById('sendBtn').disabled = false;
+    }
+};
+</script>
+</body>
+</html>
