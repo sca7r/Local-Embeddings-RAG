@@ -136,7 +136,7 @@ class SemanticCache:
     def get(self, query_emb: np.ndarray) -> Optional[str]:
         q = query_emb.flatten()
         for emb, answer in self._store:
-            sim = float(np.dot(q, emb.flatten()))   # embeddings are already L2-normalised
+            sim = float(np.dot(q, emb.flatten()))   
             if sim >= self.threshold:
                 logger.info("semantic_cache hit (sim=%.4f)", sim)
                 return answer
@@ -179,7 +179,7 @@ def normalize_embedding(arr: np.ndarray) -> np.ndarray:
     return (arr / (np.linalg.norm(arr, axis=1, keepdims=True) + 1e-12)).astype("float32")
 
 async def run_in_executor(func, *args, **kwargs):
-    loop = asyncio.get_running_loop()        # Fix2: get_event_loop() deprecated in Py3.10+
+    loop = asyncio.get_running_loop()        
     return await loop.run_in_executor(executor, lambda: func(*args, **kwargs))
 
 def make_contexts_hash(contexts: List[str]) -> str:
@@ -232,10 +232,10 @@ def reciprocal_rank_fusion(
     return [t for t, _ in sorted(scores.items(), key=lambda x: x[1], reverse=True)]
 
 # ================= EMBEDDING (cached, thread-safe) =================
-_embed_cache_lock = threading.Lock()  # Fix4: threading.Lock is uvloop-safe; TTLCache is not thread-safe
+_embed_cache_lock = threading.Lock()  
 
 async def embed_texts_async(texts: List[str]) -> np.ndarray:
-    # Fix7: build results as a dict keyed by position so cached/computed
+   
     #       entries are always placed at the correct index regardless of order.
     results: dict[int, np.ndarray] = {}
     to_compute: List[Tuple[int, str]] = []   # (position_in_texts, text)
@@ -249,7 +249,7 @@ async def embed_texts_async(texts: List[str]) -> np.ndarray:
                 to_compute.append((i, t))
 
     if to_compute:
-        # Fix5: unpack only raw_texts; positions are tracked via to_compute
+       
         positions, raw_texts = zip(*to_compute)
         computed = await run_in_executor(embed_model.encode, list(raw_texts))
         computed = normalize_embedding(np.array(computed))
@@ -328,7 +328,7 @@ async def load_pdf(file: UploadFile = File(...)):
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
             tmp.write(await file.read())
-            tmp.flush()          # Fix: ensure bytes are written before pdfplumber reads the file
+            tmp.flush()          # ensure bytes are written before pdfplumber reads the file
             temp_path = tmp.name
 
         text   = await run_in_executor(extract_text_from_pdf, temp_path)
@@ -353,7 +353,7 @@ async def load_pdf(file: UploadFile = File(...)):
         logger.exception("load_pdf failed: %s", str(e))
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
     finally:
-        # Fix3: always clean up the temp file
+        # always clean up the temp file
         if temp_path and os.path.exists(temp_path):
             os.unlink(temp_path)
 
